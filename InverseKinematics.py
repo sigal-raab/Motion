@@ -97,23 +97,7 @@ class BasicInverseKinematics:
                 assert (jdirs_positive[0] == jdirs_positive).all() and (jdirs_positive[0] == ddirs_positive).all()
                 dirs_positive = jdirs_positive[0]
 
-                # original code
-                rotations_orig = Quaternions.from_angle_axis(angles, axises)
-
-                # hack to fix Quaternions bug
-                from scipy.spatial.transform import Rotation as R
-                axes_norms = np.linalg.norm(axises, axis=2, keepdims=True)
-                axes_norms[axes_norms == 0] = 1
-                axes_norms = np.repeat(axes_norms, 3, axis=2)
-                angles_rep = np.repeat(angles[:, :, np.newaxis], 3, axis=2)
-                rotvecs = axises / axes_norms * angles_rep
-                scipy_rotations = R.from_rotvec(rotvecs.reshape(-1, 3))
-                euler = scipy_rotations.as_euler(seq='xyz', degrees=False).reshape(angles.shape+(3,))
-                rotations = Quaternions.from_euler(euler, order='xyz', world=True)
-
-                if not np.allclose(rotations_orig, rotations):
-                    print('aaa')
-                    pass
+                rotations = Quaternions.from_angle_axis(angles, axises)
 
                 if rotations.shape[1] == 1:
                     averages = rotations[:,0]

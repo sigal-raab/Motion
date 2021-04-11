@@ -51,14 +51,11 @@ def joint_angle_error(pred_mat, gt_mat):
 
     return np.mean(np.array(angles))
 
+def parents_20_totem():
+    parents = np.array([-1, 0, 1, 2, 0, 4, 5, 0, 7, 8, 9, 10, 8, 12, 13, 14, 8, 16, 17, 18])
+    return parents
 
-def offsets_from_positions(positions, parents):
-    p = positions[0]
-    offsets = copy.deepcopy(p)
-    offsets[1:] = p[1:] - p[parents[1:]]
-    return offsets
-
-def joints_offsets_20_totem():
+def offsets_20_totem():
     offsets = np.array([
        [ 0.      ,  0.      ,  0.      ],
        [-2.726159,  0.      ,  0.      ],
@@ -84,20 +81,8 @@ def joints_offsets_20_totem():
     return offsets
 
 
-def animation_from_positions(positions, offsets=None):
-    parents = np.array([-1,  0,  1,  2,  0,  4,  5,  0,  7,  8,  9, 10,  8, 12, 13, 14,  8, 16, 17, 18])
-    if offsets is None:
-        offsets = offsets_from_positions(positions, parents)
-    orients = Quaternions.id(0)
-    anim_positions = np.repeat(offsets[np.newaxis], positions.shape[0], axis=0)
-    rotations = Quaternions.id((positions.shape[0], positions.shape[1]))
-
-    anim = Animation.Animation(rotations, anim_positions, orients, offsets, parents)
-    return anim
-
-
-def rotations_from_positions(positions, offsets=None):
-    anim = animation_from_positions(positions, offsets)
+def rotations_from_positions(positions, parents, offsets=None):
+    anim = Animation.animation_from_positions(positions, parents, offsets)
     ik = IK.BasicInverseKinematics(anim, positions, silent=False, iterations=1)
     ik()
     return anim.rotations, anim
@@ -107,7 +92,7 @@ def IK_test_consistency():
     """ read a bvh, run FK and then IK and expect what we had in the bvh """
 
     bvh_path = osp.expanduser('~/tmp/20 Joints GT.bvh')
-    bvh_path_out = bvh_path.replace('.bvh', '_fk_ik_from_3.bvh')
+    bvh_path_out = bvh_path.replace('.bvh', '_fk_ik.bvh')
 
     anim, names, _ = BVH.load(bvh_path, world=True)
 
@@ -119,11 +104,7 @@ def IK_test_consistency():
     fk_positions = fk_transforms[:, :, :3, 3]
 
     # inverse kinematics: positions to rotations
-    # rot, anim_ik = rotations_from_positions(fk_positions, offsets=joints_offsets_20_totem())
-    fk_positions[:3] = fk_positions[3]
-    rot, anim_ik = rotations_from_positions(fk_positions, offsets=joints_offsets_20_totem())
-    # anim_ik = anim.copy()
-    # anim_ik.rotations = rot
+    rot, anim_ik = rotations_from_positions(fk_positions, parents=parents_20_totem(), offsets=offsets_20_totem())
 
     # mpjpe: confirm that requested positions is the same as the ones obtained by anim_ik
     fk_transforms_from_ik = Animation.transforms_global(anim_ik)

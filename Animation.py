@@ -315,10 +315,7 @@ def transforms_local(anim):
         transforms for each joint J
     """
     
-    # transforms = anim.rotations.transforms()
-    from scipy.spatial.transform import Rotation as R
-    transforms = R.from_euler(angles=anim.rotations.euler(order='xyz').reshape(-1, 3), seq='xyz', degrees=False).as_matrix().reshape(
-        anim.shape + (3, 3))
+    transforms = anim.rotations.transforms()
     transforms = np.concatenate([transforms, np.zeros(transforms.shape[:2] + (3, 1))], axis=-1)
     transforms = np.concatenate([transforms, np.zeros(transforms.shape[:2] + (1, 4))], axis=-2)
     transforms[:,:,0:3,3] = anim.positions
@@ -610,7 +607,26 @@ def offsets_transforms_global(anim):
 def offsets_global(anim):
     offsets = offsets_transforms_global(anim)[:,:,:,3]
     return offsets[0,:,:3] / offsets[0,:,3,np.newaxis]
-    
+
+
+def offsets_from_positions(positions, parents):
+    p = positions[0]
+    offsets = p.copy()
+    offsets[1:] = p[1:] - p[parents[1:]]
+    return offsets
+
+
+def animation_from_positions(positions, parents, offsets=None):
+    if offsets is None:
+        offsets = offsets_from_positions(positions, parents)
+    orients = Quaternions.id(0)
+    anim_positions = np.repeat(offsets[np.newaxis], positions.shape[0], axis=0)
+    rotations = Quaternions.id((positions.shape[0], positions.shape[1]))
+
+    anim = Animation(rotations, anim_positions, orients, offsets, parents)
+    return anim
+
+
 """ Lengths """
 
 def offset_lengths(anim):
