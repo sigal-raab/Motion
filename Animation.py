@@ -137,8 +137,43 @@ class Animation:
             Quaternions.exp(rotations), positions,
             Quaternions.exp(orients), offsets,
             parents.copy())
-    
-    
+
+    # def reorder(self, new_order):
+    #     self.rotations = self.rotations[:, new_order]
+    #     self.positions = self.positions[:, new_order]
+    #     self.offsets = self.offsets[new_order]
+    #     if self.orients.shape[0] > 0:
+    #         self.orients = self.orients[:, new_order]
+    #
+    #     # reorder parents
+    #     sorted_order_inversed = {num: i for i, num in enumerate(new_order)}
+    #     sorted_order_inversed[-1] = -1
+    #     self.parents = np.array([sorted_order_inversed[self.parents[i]] for i in new_order])
+
+    # def sort(self, names):
+    #     children = AnimationStructure.children_list(self.parents)
+    #     sorted_order = np.zeros(self.parents.shape, dtype=np.int)
+    #     root_idx = np.where(self.parents == -1)[0][0]
+    #     sorted_order[0] = root_idx
+    #
+    #     def get_sorted_order(sorted_order, parent_out_idx, parent_in_idx, children):
+    #         out_idx = parent_out_idx  # return same index in case there are no children
+    #         for child in children[parent_in_idx]:
+    #             out_idx = out_idx + 1
+    #             sorted_order[out_idx] = child
+    #             sorted_order, out_idx = get_sorted_order(sorted_order, out_idx, child, children)
+    #         return sorted_order, out_idx
+    #
+    #     sorted_order, _ = get_sorted_order(sorted_order, 0, root_idx, children)
+    #
+    #     anim = self.copy()
+    #     anim.reorder(sorted_order)
+    #     if names is not None:
+    #         names = names[sorted_order]
+    #
+    #     return anim, names
+
+
 """ Maya Interaction """
 
 def load_to_maya(anim, names=None, radius=0.5):
@@ -612,20 +647,59 @@ def offsets_global(anim):
 def offsets_from_positions(positions, parents):
     p = positions[0]
     offsets = p.copy()
-    offsets[1:] = p[1:] - p[parents[1:]]
+    root_idx = np.where(parents==-1)[0][0]
+    idx = np.delete(np.arange(p.shape[0]), root_idx)
+    offsets[idx] = p[idx] - p[parents[idx]]
     return offsets
 
 
-def animation_from_positions(positions, parents, offsets=None):
-    if offsets is None:
-        offsets = offsets_from_positions(positions, parents)
+def animation_from_offsets(offsets, parents, shape=None):
+    if shape is None:
+        shape=(0, offsets.shape[0])
     orients = Quaternions.id(0)
-    anim_positions = np.repeat(offsets[np.newaxis], positions.shape[0], axis=0)
-    rotations = Quaternions.id((positions.shape[0], positions.shape[1]))
+    anim_positions = np.repeat(offsets[np.newaxis], shape[0], axis=0)
+    rotations = Quaternions.id((shape[0], shape[1]))
 
     anim = Animation(rotations, anim_positions, orients, offsets, parents)
     return anim
 
+
+# def animation_from_positions(positions, parents, offsets=None):
+#
+#     sorted_order = get_sorted_order(parents)
+#     positions = positions[:, sorted_order]
+#     # reorder parents
+#     sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
+#     sorted_order_inversed[-1] = -1
+#     parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
+#
+#     if offsets is None:
+#         offsets = offsets_from_positions(positions, parents)
+#     orients = Quaternions.id(0)
+#     anim_positions = np.repeat(offsets[np.newaxis], positions.shape[0], axis=0)
+#     rotations = Quaternions.id((positions.shape[0], positions.shape[1]))
+#
+#     anim = Animation(rotations, anim_positions, orients, offsets, parents)
+#     return anim, sorted_order
+
+
+def get_sorted_order_internal(sorted_order, parent_out_idx, parent_in_idx, children):
+    out_idx = parent_out_idx  # return same index in case there are no children
+    for child in children[parent_in_idx]:
+        out_idx = out_idx + 1
+        sorted_order[out_idx] = child
+        sorted_order, out_idx = get_sorted_order_internal(sorted_order, out_idx, child, children)
+    return sorted_order, out_idx
+
+
+def get_sorted_order(parents):
+    children = AnimationStructure.children_list(parents)
+    sorted_order = np.zeros(parents.shape, dtype=np.int)
+    root_idx = np.where(parents == -1)[0][0]
+    sorted_order[0] = root_idx
+
+    sorted_order, _ = get_sorted_order_internal(sorted_order, 0, root_idx, children)
+    return sorted_order
 
 """ Lengths """
 
