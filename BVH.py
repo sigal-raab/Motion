@@ -2,6 +2,7 @@ import re
 import numpy as np
 
 from Animation import Animation
+import AnimationStructure
 from Quaternions import Quaternions
 
 channelmap = {
@@ -22,7 +23,7 @@ ordermap = {
     'z' : 2,
 }
 
-def load(filename, start=None, end=None, order=None, world=False):
+def load(filename, start=None, end=None, order=None, world=True):
     """
     Reads a BVH file and constructs an animation
     
@@ -58,11 +59,13 @@ def load(filename, start=None, end=None, order=None, world=False):
     i = 0
     active = -1
     end_site = False
-    
+    end_site_is_joint = False
+
     names = []
     orients = Quaternions.id(0)
     offsets = np.array([]).reshape((0,3))
     parents = np.array([], dtype=int)
+    end_site_joints = np.array([], dtype=int)
     
     for line in f:
         
@@ -81,14 +84,27 @@ def load(filename, start=None, end=None, order=None, world=False):
         if "{" in line: continue
 
         if "}" in line:
-            if end_site: end_site = False
-            else: active = parents[active]
+            # if end_site: end_site = False
+            # else: active = parents[active]
+            if not end_site or end_site_is_joint:
+                active = parents[active]
+            if end_site:
+                end_site = False
+                end_site_is_joint = False
             continue
         
         offmatch = re.match(r"\s*OFFSET\s+([\-\d\.e]+)\s+([\-\d\.e]+)\s+([\-\d\.e]+)", line)
         if offmatch:
-            if not end_site:
-                offsets[active] = np.array([list(map(float, offmatch.groups()))])
+            offsets[active] = np.array([list(map(float, offmatch.groups()))])
+            if end_site and all(offsets[active]==0):
+                # an end site of offset zero is not considered a joint
+                names = names[:-1]
+                offsets = offsets[:-1]
+                orients.qs = orients.qs[:-1]
+                active = parents[active]
+                parents = parents[:-1]
+                end_site_joints = end_site_joints[:-1]
+                end_site_is_joint = False
             continue
            
         chanmatch = re.match(r"\s*CHANNELS\s+(\d+)", line)
@@ -115,6 +131,17 @@ def load(filename, start=None, end=None, order=None, world=False):
         
         if "End Site" in line:
             end_site = True
+            offsets = np.append(offsets, np.array([[0, 0, 0]]), axis=0)
+            orients.qs = np.append(orients.qs, np.array([[1, 0, 0, 0]]), axis=0)
+            parents = np.append(parents, active)
+            active = (len(parents) - 1)
+            end_site_joints = np.append(end_site_joints, active)
+            end_site_is_joint = True
+            end_site_match = re.match(".*#\s*name\s*:\s*(\w+).*", line)
+            if end_site_match:
+                names.append(end_site_match.group(1))
+            else:
+                names.append('EndSite{}'.format(len(end_site_joints)-1))
             continue
               
         fmatch = re.match("\s*Frames:\s+(\d+)", line)
@@ -140,16 +167,18 @@ def load(filename, start=None, end=None, order=None, world=False):
         dmatch = line.strip().split(' ')
         if dmatch:
             data_block = np.array(list(map(float, dmatch)))
-            N = len(parents)
+            N = len(parents) - len(end_site_joints)
+            non_end_site_joints = list( set(range(len(parents)))-set(end_site_joints) )
             fi = i - start if start else i
             if   channels == 3:
                 positions[fi,0:1] = data_block[0:3]
-                rotations[fi, : ] = data_block[3: ].reshape(N,3)
+                rotations[fi, non_end_site_joints ] = data_block[3: ].reshape(N,3)
             elif channels == 6:
                 data_block = data_block.reshape(N,6)
                 positions[fi,:] = data_block[:,0:3]
-                rotations[fi,:] = data_block[:,3:6]
+                rotations[fi,non_end_site_joints] = data_block[:,3:6]
             elif channels == 9:
+                assert False, 'need to change code to handle end_site_joints'
                 positions[fi,0] = data_block[0:3]
                 data_block = data_block[3:].reshape(N-1,9)
                 rotations[fi,1:] = data_block[:,3:6]
@@ -203,7 +232,11 @@ def save(filename, anim, names=None, frametime=1.0/24.0, order='xyz', positions=
     print_order = order[::-1] # in a bvh file, rotations are printed from last to first
     if names is None:
         names = ["joint_" + str(i) for i in range(len(anim.parents))]
-    
+
+    # anim, names = anim.sort(names)
+    children = AnimationStructure.children_list(anim.parents)
+    end_sites = [i for i,c in enumerate(children) if len(c)==0]
+
     with open(filename, 'w') as f:
 
         t = ""
@@ -213,12 +246,11 @@ def save(filename, anim, names=None, frametime=1.0/24.0, order='xyz', positions=
         t += '\t'
 
         f.write("%sOFFSET %f %f %f\n" % (t, anim.offsets[0,0], anim.offsets[0,1], anim.offsets[0,2]) )
-        f.write("%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n" % 
+        f.write("%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n" %
             (t, channelmap_inv[print_order[0]], channelmap_inv[print_order[1]], channelmap_inv[print_order[2]]))
 
-        for i in range(anim.shape[1]):
-            if anim.parents[i] == 0:
-                t = save_joint(f, anim, names, t, i, print_order=print_order, positions=positions)
+        for child in children[0]:
+            t = save_joint(f, anim, names, t, child, print_order=print_order, children=children, positions=positions)
 
         t = t[:-1]
         f.write("%s}\n" % t)
@@ -227,60 +259,54 @@ def save(filename, anim, names=None, frametime=1.0/24.0, order='xyz', positions=
         f.write("Frames: %i\n" % anim.shape[0]);
         f.write("Frame Time: %f\n" % frametime);
             
-        #if orients:        
-        #    rots = np.degrees((-anim.orients[np.newaxis] * anim.rotations).euler(order=order[::-1]))
-        #else:
-        #    rots = np.degrees(anim.rotations.euler(order=order[::-1]))
         rots = np.degrees(anim.rotations.euler(order=order))
         poss = anim.positions
         
         for i in range(anim.shape[0]):
             for j in range(anim.shape[1]):
-                
-                if positions or j == 0:
-                
-                    f.write("%f %f %f %f %f %f " % (
-                        poss[i,j,0],                  poss[i,j,1],                  poss[i,j,2], 
-                        rots[i,j,ordermap[print_order[0]]], rots[i,j,ordermap[print_order[1]]], rots[i,j,ordermap[print_order[2]]]))
-                
-                else:
-                    
-                    f.write("%f %f %f " % (
-                        rots[i,j,ordermap[print_order[0]]], rots[i,j,ordermap[print_order[1]]], rots[i,j,ordermap[print_order[2]]]))
+
+                if j not in end_sites:
+                    if positions or j == 0:
+
+                        f.write("%f %f %f %f %f %f " % (
+                            poss[i,j,0],                  poss[i,j,1],                  poss[i,j,2],
+                            rots[i,j,ordermap[print_order[0]]], rots[i,j,ordermap[print_order[1]]], rots[i,j,ordermap[print_order[2]]]))
+
+                    else:
+
+                        f.write("%f %f %f " % (
+                            rots[i,j,ordermap[print_order[0]]], rots[i,j,ordermap[print_order[1]]], rots[i,j,ordermap[print_order[2]]]))
 
             f.write("\n")
     
     
-def save_joint(f, anim, names, t, i, print_order, positions=False):
-    
-    f.write("%sJOINT %s\n" % (t, names[i]))
+def save_joint(f, anim, names, t, i, print_order, children, positions=False):
+    end_site = False
+    if len(children[i]) == 0: #anim.parents[i+1] != i:
+        end_site = True
+
+    if not end_site:
+        f.write("%sJOINT %s\n" % (t, names[i]))
+    else:
+        # f.write("%sEnd Site\n" % t)
+        f.write("%sEnd Site #name: %s\n" % (t, names[i]))
+
     f.write("%s{\n" % t)
     t += '\t'
-  
+
     f.write("%sOFFSET %f %f %f\n" % (t, anim.offsets[i,0], anim.offsets[i,1], anim.offsets[i,2]))
-    
-    if positions:
-        f.write("%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n" % (t, 
-            channelmap_inv[print_order[0]], channelmap_inv[print_order[1]], channelmap_inv[print_order[2]]))
-    else:
-        f.write("%sCHANNELS 3 %s %s %s\n" % (t, 
-            channelmap_inv[print_order[0]], channelmap_inv[print_order[1]], channelmap_inv[print_order[2]]))
-    
-    end_site = True
-    
-    for j in range(anim.shape[1]):
-        if anim.parents[j] == i:
-            t = save_joint(f, anim, names, t, j, print_order=print_order, positions=positions)
-            end_site = False
-    
-    if end_site:
-        f.write("%sEnd Site\n" % t)
-        f.write("%s{\n" % t)
-        t += '\t'
-        f.write("%sOFFSET %f %f %f\n" % (t, 0.0, 0.0, 0.0))
-        t = t[:-1]
-        f.write("%s}\n" % t)
-  
+
+    if not end_site:
+        if positions:
+            f.write("%sCHANNELS 6 Xposition Yposition Zposition %s %s %s \n" % (t,
+                channelmap_inv[print_order[0]], channelmap_inv[print_order[1]], channelmap_inv[print_order[2]]))
+        else:
+            f.write("%sCHANNELS 3 %s %s %s\n" % (t,
+                channelmap_inv[print_order[0]], channelmap_inv[print_order[1]], channelmap_inv[print_order[2]]))
+
+        for j in children[i]:
+            t = save_joint(f, anim, names, t, j, print_order=print_order, children=children, positions=positions)
+
     t = t[:-1]
     f.write("%s}\n" % t)
     
