@@ -81,20 +81,16 @@ def offsets_20_totem():
     return offsets
 
 
-def rotations_from_positions(positions, parents, offsets=None):
-    anim = Animation.animation_from_positions(positions, parents, offsets)
-    ik = IK.BasicInverseKinematics(anim, positions, silent=False, iterations=1)
-    ik()
-    return anim.rotations, anim
-
-
 def IK_test_consistency():
     """ read a bvh, run FK and then IK and expect what we had in the bvh """
 
+    # bvh_path = osp.expanduser('~/tmp/from_MotioNet.bvh')
     bvh_path = osp.expanduser('~/tmp/20 Joints GT.bvh')
     bvh_path_out = bvh_path.replace('.bvh', '_fk_ik.bvh')
-
     anim, names, _ = BVH.load(bvh_path, world=True)
+    # bvh_path_out = bvh_path.replace('.bvh', '_test.bvh')
+    # BVH.save(bvh_path_out, anim, names=names)
+    # return
 
     # convert nan rotataions to Id rotations
     anim.rotations.qs[np.isnan(anim.rotations.qs).all(axis=2)] = Quaternions.id(1)
@@ -104,7 +100,7 @@ def IK_test_consistency():
     fk_positions = fk_transforms[:, :, :3, 3]
 
     # inverse kinematics: positions to rotations
-    rot, anim_ik = rotations_from_positions(fk_positions, parents=parents_20_totem(), offsets=offsets_20_totem())
+    anim_ik, _ = IK.animation_from_positions(fk_positions, parents=parents_20_totem(), offsets=offsets_20_totem())
 
     # mpjpe: confirm that requested positions is the same as the ones obtained by anim_ik
     fk_transforms_from_ik = Animation.transforms_global(anim_ik)
@@ -224,24 +220,32 @@ def IK_test_consistency_scipy():
 
 
 def IK_test_minimal():
-    bvh_path = osp.expanduser('~/tmp/minimal3_net_rot.bvh')
-    # bvh_path = '/Users/sigalraab/Downloads/animation_Predicted Motion_00000011.bvh'
+    # bvh_path = osp.expanduser('~/tmp/minimal3_net_rot.bvh')
+    bvh_path = osp.expanduser('~/tmp/minimal5.bvh')
+    # bvh_path = osp.expanduser('~/tmp/from_MotioNet.bvh')
     bvh_path_out = bvh_path.replace('.bvh', '_out.bvh')
 
-    anim, names, _ = BVH.load(bvh_path)
+    anim, names, _ = BVH.load(bvh_path, world=True)
+    if False:
+        bvh_path_out = bvh_path.replace('.bvh', '_test.bvh')
+        BVH.save(bvh_path_out, anim, names=names)
+        return
 
     # target_positions = np.array([[[0,0,0],[0,0,1]], [[0,0,0],[0,0,-1]]])
     # target_positions = np.array([[[0,0,0],[0,0,1],[1,0,1]], [[0,0,0],[1,0,0],[1/math.sqrt(2),0,-1/math.sqrt(2)]]])
-    target_positions = np.array([[[0,0,0],[0,0,-1],[1,0,-1]], [[0,0,0],[1,0,0],[2,0,0]]])
-    n_frames = target_positions.shape[0]
-    anim.rotations = R.identity(anim.shape[1]*n_frames)
+    # target_positions = np.array([[[0,0,0],[0,0,-1],[1,0,-1]], [[0,0,0],[1,0,0],[2,0,0]]]) # minimal_net_rot
+    target_positions = np.array([[[0,0,0],[0,0,1],[1,0,1],[1,0,0],[2,0,0]], [[0,0,0],[1,0,0],[2,0,0],[0,0,-1],[0,0,-2]]]) # minimal5
+    # n_frames = target_positions.shape[0]
+    anim.rotations = Quaternions.id(target_positions.shape[:2]) # R.identity(anim.shape[1]*n_frames)
     anim.positions = np.repeat(anim.positions, target_positions.shape[0], axis=0)
 
     ik = IK.BasicInverseKinematics(anim, target_positions, silent=False) #  BasicJacobianIK
-    ik('axis_angle')
+    ik()
+    # ik('axis_angle')
     # ik.call_axis_angle()
     # euler_angels =[[[math.degrees(angle) for angle in frame] for frame in joint_frames] for joint_frames in Quaternions.euler(anim.rotations)]
-    euler = anim.rotations.as_euler(seq='xyz', degrees=True).reshape(anim.shape+(3,))
+    # euler = anim.rotations.as_euler(seq='xyz', degrees=True).reshape(anim.shape+(3,))
+    euler = np.degrees(anim.rotations.euler(order='xyz'))
     # print(euler_angels)
     BVH.save(bvh_path_out, anim, names=names)
     pass
@@ -286,10 +290,10 @@ def test_Quat():
 
 if __name__ == '__main__':
     # test_Quat()
-    # IK_test_minimal()
+    IK_test_minimal()
     # IK_test_consistency_scipy()
     # IK_test_consistency_Quaternions()
-    IK_test_consistency() # clean
+    # IK_test_consistency() # clean
 
     # pose_2d = np.array([[473.68356, 444.9424],
     #                       [500.9961, 448.02988],
