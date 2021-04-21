@@ -96,7 +96,8 @@ class BasicInverseKinematics:
 
                 axises = np.cross(jdirs, ddirs)
                 # assert (np.abs(Quaternions.from_angle_axis(angles, np.cross(jdirs, ddirs)) * jdirs - ddirs)).max() < 1e-6
-                assert np.allclose(Quaternions.from_angle_axis(angles, np.cross(jdirs, ddirs)) * jdirs, ddirs)
+                if jdirs.shape[1] == 1: # for a single bone reconstruction should be exact
+                    assert np.allclose(Quaternions.from_angle_axis(angles, np.cross(jdirs, ddirs)) * jdirs, ddirs)
                 axises = -anim_rotations[:,j,np.newaxis] * axises
 
                 # find out which of the given bones are not of zero length

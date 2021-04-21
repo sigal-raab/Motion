@@ -141,7 +141,7 @@ def load(filename, start=None, end=None, order=None, world=True):
             if end_site_match:
                 names.append(end_site_match.group(1))
             else:
-                names.append('EndSite{}'.format(len(end_site_joints)-1))
+                names.append('{}_end_site'.format(names[parents[active]]))
             continue
               
         fmatch = re.match("\s*Frames:\s+(\d+)", line)
