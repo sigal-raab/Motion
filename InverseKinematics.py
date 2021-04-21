@@ -76,18 +76,27 @@ class BasicInverseKinematics:
                 anim_transforms = Animation.transforms_global(self.animation)
                 anim_positions = anim_transforms[:,:,:3,3] # look at the translation vector inside a rotation matrix
                 anim_rotations = Quaternions.from_transforms(anim_transforms)
-                
+                # self.animation.rotations[1,0]*(self.animation.offsets[1] + self.animation.rotations[1,1]*self.animation.offsets[2]) ==
+                #         anim_positions[1, 2]
+
                 jdirs = anim_positions[:,c] - anim_positions[:,np.newaxis,j]
                 ddirs = self.positions[:,c] - anim_positions[:,np.newaxis,j]
 
-                jsums = np.sqrt(np.sum(jdirs**2.0, axis=-1)) + 1e-10
-                dsums = np.sqrt(np.sum(ddirs**2.0, axis=-1)) + 1e-10
+                jsums = np.sqrt(np.sum(jdirs**2.0, axis=-1)) + 1e-20
+                dsums = np.sqrt(np.sum(ddirs**2.0, axis=-1)) + 1e-20
                 
                 jdirs = jdirs / jsums[:,:,np.newaxis]
                 ddirs = ddirs / dsums[:,:,np.newaxis]
                 
                 angles = np.arccos(np.sum(jdirs * ddirs, axis=2).clip(-1, 1))
+                # jdirs_normed = jdirs/np.linalg.norm(jdirs, axis=2)[...,np.newaxis]
+                # ddirs_normed = ddirs/np.linalg.norm(ddirs, axis=2)[...,np.newaxis]
+                # angles = np.arccos(np.sum(jdirs_normed * ddirs_normed, axis=2).clip(-1, 1))
+                # assert np.abs(angles-angles1).max() < 1e-7
+
                 axises = np.cross(jdirs, ddirs)
+                # assert (np.abs(Quaternions.from_angle_axis(angles, np.cross(jdirs, ddirs)) * jdirs - ddirs)).max() < 1e-6
+                assert np.allclose(Quaternions.from_angle_axis(angles, np.cross(jdirs, ddirs)) * jdirs, ddirs)
                 axises = -anim_rotations[:,j,np.newaxis] * axises
 
                 # find out which of the given bones are not of zero length
@@ -502,3 +511,22 @@ class ICP:
                 error = np.mean(np.sqrt(np.sum((curr - self.goal)**2.0, axis=-1)))
                 print('[ICP] Iteration %i | Error: %f' % (i+1, error))
                 
+
+def animation_from_positions(positions, parents, offsets=None):
+    sorted_order = Animation.get_sorted_order(parents)
+    positions = positions[:, sorted_order]
+
+    # reorder parents
+    sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
+    sorted_order_inversed[-1] = -1
+    parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
+
+    if offsets is None:
+        offsets = Animation.offsets_from_positions(positions, parents)
+
+    anim = Animation.animation_from_offsets(offsets, parents, positions.shape)
+
+    # apply IK
+    ik = BasicInverseKinematics(anim, positions, silent=False, iterations=1)
+    ik()
+    return anim, sorted_order
