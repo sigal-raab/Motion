@@ -523,7 +523,7 @@ def animation_from_positions(positions, parents, offsets=None):
     parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
 
     if offsets is None:
-        offsets = Animation.offsets_from_positions(positions, parents)
+        offsets = Animation.offsets_from_positions(positions[0], parents)
 
     anim = Animation.animation_from_offsets(offsets, parents, positions.shape)
 

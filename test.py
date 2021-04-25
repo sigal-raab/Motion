@@ -85,7 +85,8 @@ def IK_test_consistency():
     """ read a bvh, run FK and then IK and expect what we had in the bvh """
 
     # bvh_path = osp.expanduser('~/tmp/from_MotioNet.bvh')
-    bvh_path = osp.expanduser('~/tmp/20 Joints GT.bvh')
+    # bvh_path = osp.expanduser('~/tmp/20 Joints GT.bvh')
+    bvh_path = osp.expanduser('~/tmp/generated_35.bvh')
     bvh_path_out = bvh_path.replace('.bvh', '_fk_ik.bvh')
     anim, names, _ = BVH.load(bvh_path, world=True)
     # bvh_path_out = bvh_path.replace('.bvh', '_test.bvh')
@@ -100,7 +101,8 @@ def IK_test_consistency():
     fk_positions = fk_transforms[:, :, :3, 3]
 
     # inverse kinematics: positions to rotations
-    anim_ik, _ = IK.animation_from_positions(fk_positions, parents=parents_20_totem(), offsets=offsets_20_totem())
+    # anim_ik, _ = IK.animation_from_positions(fk_positions, parents=parents_20_totem(), offsets=offsets_20_totem())
+    anim_ik, _ = IK.animation_from_positions(fk_positions, parents=anim.parents)
 
     # mpjpe: confirm that requested positions is the same as the ones obtained by anim_ik
     fk_transforms_from_ik = Animation.transforms_global(anim_ik)
@@ -178,6 +180,7 @@ def IK_test_consistency_Quaternions():
 
     pass
 
+
 def IK_test_consistency_scipy():
     """ read a bvh, run FK and then IK and expect what we had in the bvh """
     bvh_path = osp.expanduser('~/tmp/from_MotioNet.bvh')
@@ -250,6 +253,18 @@ def IK_test_minimal():
     BVH.save(bvh_path_out, anim, names=names)
     pass
 
+
+def test_anim_from_pose():
+    bvh_path = osp.expanduser('~/tmp/minimal5_out.bvh')
+    anim, names, _ = BVH.load(bvh_path, world=True)
+
+    target_positions = np.array([[[0,0,0],[0,0,1],[1,0,1],[1,0,0],[2,0,0]], [[0,0,0],[1,0,0],[2,0,0],[0,0,-1],[0,0,-2]]]) # minimal5
+    anim, sorted_order = Animation.animation_from_positions(target_positions, anim.parents)
+
+    bvh_path_out = bvh_path.replace('.bvh', '_pos.bvh')
+    BVH.save(bvh_path_out, anim, names, positions=True)
+
+
 def test_Quat():
     from Quaternions import Quaternions
     order = 'yzx'
@@ -288,13 +303,14 @@ def test_Quat():
         assert np.allclose(degrees2_to, degrees_to_scipy)
     pass
 
+
 if __name__ == '__main__':
     # test_Quat()
-    IK_test_minimal()
+    # IK_test_minimal()
     # IK_test_consistency_scipy()
     # IK_test_consistency_Quaternions()
-    # IK_test_consistency() # clean
-
+    IK_test_consistency() # clean
+    # test_anim_from_pose()
     # pose_2d = np.array([[473.68356, 444.9424],
     #                       [500.9961, 448.02988],
     #                            [479.83926, 530.78564],

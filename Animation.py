@@ -645,11 +645,16 @@ def offsets_global(anim):
 
 
 def offsets_from_positions(positions, parents):
-    p = positions[0]
-    offsets = p.copy()
+    is_one_frame = False
+    if positions.ndim == 2:
+        positions = positions[np.newaxis]
+        is_one_frame = True
+    offsets = positions.copy()
     root_idx = np.where(parents==-1)[0][0]
-    idx = np.delete(np.arange(p.shape[0]), root_idx)
-    offsets[idx] = p[idx] - p[parents[idx]]
+    idx = np.delete(np.arange(positions.shape[1]), root_idx)
+    offsets[:, idx] = positions[:, idx] - positions[:, parents[idx]]
+    if is_one_frame:
+        offsets = offsets[0]
     return offsets
 
 
@@ -664,23 +669,27 @@ def animation_from_offsets(offsets, parents, shape=None):
     return anim
 
 
-# def animation_from_positions(positions, parents, offsets=None):
-#
-#     sorted_order = get_sorted_order(parents)
-#     positions = positions[:, sorted_order]
-#     # reorder parents
-#     sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
-#     sorted_order_inversed[-1] = -1
-#     parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
-#
-#     if offsets is None:
-#         offsets = offsets_from_positions(positions, parents)
-#     orients = Quaternions.id(0)
-#     anim_positions = np.repeat(offsets[np.newaxis], positions.shape[0], axis=0)
-#     rotations = Quaternions.id((positions.shape[0], positions.shape[1]))
-#
-#     anim = Animation(rotations, anim_positions, orients, offsets, parents)
-#     return anim, sorted_order
+def animation_from_positions(positions, parents):
+    '''
+    This method should not be used. It converts a sequence of motions to an animation where rotations are zero
+    and positions are as in the input. Some reasons not to use it:
+    1. the rotated direction of the parent pose is not towards the joint
+    2. There is no way to change an end site pose (as fare as I [SR] know)
+    '''
+    sorted_order = get_sorted_order(parents)
+    positions = positions[:, sorted_order]
+    # reorder parents
+    sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
+    sorted_order_inversed[-1] = -1
+    parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
+
+    offsets = offsets_from_positions(positions[0], parents)
+    orients = Quaternions.id(0)
+    anim_positions = offsets_from_positions(positions, parents)
+    rotations = Quaternions.id(positions.shape[:2])
+
+    anim = Animation(rotations, anim_positions, orients, offsets, parents)
+    return anim, sorted_order
 
 
 def get_sorted_order_internal(sorted_order, parent_out_idx, parent_in_idx, children):
