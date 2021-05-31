@@ -523,7 +523,11 @@ def animation_from_positions(positions, parents, offsets=None):
     parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
 
     if offsets is None:
-        offsets = Animation.offsets_from_positions(positions[0], parents)
+        orig_offsets = Animation.offsets_from_positions(positions, parents) # + np.finfo(positions.dtype).eps
+        bone_lens = np.linalg.norm(orig_offsets, axis=2)[:, :, np.newaxis]
+        normed_offsets = np.divide(orig_offsets, bone_lens, out=np.zeros_like(orig_offsets), where=bone_lens!=0)
+            # orig_offsets /  np.linalg.norm(orig_offsets, axis=2)[:,:,np.newaxis] * bone_lens[np.newaxis,:,np.newaxis]
+        offsets = normed_offsets[0] * bone_lens.mean(axis=0)
 
     anim = Animation.animation_from_offsets(offsets, parents, positions.shape)
 

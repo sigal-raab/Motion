@@ -674,7 +674,7 @@ def animation_from_positions(positions, parents):
     This method should not be used. It converts a sequence of motions to an animation where rotations are zero
     and positions are as in the input. Some reasons not to use it:
     1. the rotated direction of the parent pose is not towards the joint
-    2. There is no way to change an end site pose (as fare as I [SR] know)
+    2. There is no way to change an end site pose (as far as I [SR] know)
     '''
     sorted_order = get_sorted_order(parents)
     positions = positions[:, sorted_order]
