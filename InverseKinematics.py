@@ -524,6 +524,10 @@ def animation_from_positions(positions, parents, offsets=None):
 
     if offsets is None:
         orig_offsets = Animation.offsets_from_positions(positions, parents) # + np.finfo(positions.dtype).eps
+
+        # prevent a zero offset (can happen in first iterations of generated motion). such offset is ill posed and
+        # results in ambigious angle when computing inverse kinematics
+        orig_offsets[orig_offsets == 0] = 1e-6 * np.random.randn()
         bone_lens = np.linalg.norm(orig_offsets, axis=2)[:, :, np.newaxis]
         normed_offsets = np.divide(orig_offsets, bone_lens, out=np.zeros_like(orig_offsets), where=bone_lens!=0)
             # orig_offsets /  np.linalg.norm(orig_offsets, axis=2)[:,:,np.newaxis] * bone_lens[np.newaxis,:,np.newaxis]
