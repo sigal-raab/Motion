@@ -525,15 +525,23 @@ def animation_from_positions(positions, parents, offsets=None):
     if offsets is None:
         orig_offsets = Animation.offsets_from_positions(positions, parents) # + np.finfo(positions.dtype).eps
 
+        # compute offsets over all joints except for root
+        root_idx = np.where(parents == -1)[0][0]
+        idx_no_root = np.delete(np.arange(positions.shape[1]), root_idx)
+        orig_offsets_no_root = orig_offsets[:, idx_no_root]
+
         # prevent a zero offset (can happen in first iterations of generated motion). such offset is ill posed and
         # results in ambigious angle when computing inverse kinematics
-        orig_offsets[orig_offsets == 0] = 1e-6 * np.random.randn()
-        bone_lens = np.linalg.norm(orig_offsets, axis=2)[:, :, np.newaxis]
-        normed_offsets = np.divide(orig_offsets, bone_lens, out=np.zeros_like(orig_offsets), where=bone_lens!=0)
-            # orig_offsets /  np.linalg.norm(orig_offsets, axis=2)[:,:,np.newaxis] * bone_lens[np.newaxis,:,np.newaxis]
-        offsets = normed_offsets[0] * bone_lens.mean(axis=0)
+        orig_offsets_no_root[orig_offsets_no_root == 0] = 1e-6 * np.random.randn()
+        bone_lens = np.linalg.norm(orig_offsets_no_root, axis=2)[:, :, np.newaxis]
+        normed_offsets_no_root = np.divide(orig_offsets_no_root, bone_lens, out=np.zeros_like(orig_offsets_no_root), where=bone_lens!=0)
+            # normed_offsets_no_root /  np.linalg.norm(normed_offsets_no_root, axis=2)[:,:,np.newaxis] * bone_lens[np.newaxis,:,np.newaxis]
+        offsets_no_root = normed_offsets_no_root[0] * bone_lens.mean(axis=0)
+        offsets = orig_offsets[0]
+        offsets[idx_no_root] = offsets_no_root
 
     anim = Animation.animation_from_offsets(offsets, parents, positions.shape)
+    anim.positions[:,root_idx] = positions[:,0] # keep root positions. important for IK
 
     # apply IK
     ik = BasicInverseKinematics(anim, positions, silent=False, iterations=1)
