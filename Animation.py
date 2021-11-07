@@ -470,7 +470,7 @@ def positions_global(anim):
     """
     
     positions = transforms_global(anim)[:,:,:,3]
-    return positions[:,:,:3] / positions[:,:,3,np.newaxis]
+    return positions[:,:,:3] / positions[:,:,3,np.newaxis]  # transforms_global(anim)[:,:,3,3] is considered here as a normalizer, but in practice it is 1
     
 """ Rotations """
     

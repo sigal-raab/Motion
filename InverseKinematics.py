@@ -80,7 +80,7 @@ class BasicInverseKinematics:
                 #         anim_positions[1, 2]
 
                 jdirs = anim_positions[:,c] - anim_positions[:,np.newaxis,j]
-                ddirs = self.positions[:,c] - anim_positions[:,np.newaxis,j]
+                ddirs = self.positions[:,c] - self.positions[:,np.newaxis,j]
 
                 jsums = np.sqrt(np.sum(jdirs**2.0, axis=-1)) + 1e-20
                 dsums = np.sqrt(np.sum(ddirs**2.0, axis=-1)) + 1e-20
@@ -89,14 +89,9 @@ class BasicInverseKinematics:
                 ddirs = ddirs / dsums[:,:,np.newaxis]
                 
                 angles = np.arccos(np.sum(jdirs * ddirs, axis=2).clip(-1, 1))
-                # jdirs_normed = jdirs/np.linalg.norm(jdirs, axis=2)[...,np.newaxis]
-                # ddirs_normed = ddirs/np.linalg.norm(ddirs, axis=2)[...,np.newaxis]
-                # angles = np.arccos(np.sum(jdirs_normed * ddirs_normed, axis=2).clip(-1, 1))
-                # assert np.abs(angles-angles1).max() < 1e-7
 
                 axises = np.cross(jdirs, ddirs)
-                # assert (np.abs(Quaternions.from_angle_axis(angles, np.cross(jdirs, ddirs)) * jdirs - ddirs)).max() < 1e-6
-                if jdirs.shape[1] == 1: # for a single bone reconstruction should be exact
+                if jdirs.shape[1] == 1: # for a single child reconstruction should be exact
                     assert np.allclose(Quaternions.from_angle_axis(angles, np.cross(jdirs, ddirs)) * jdirs, ddirs)
                 axises = -anim_rotations[:,j,np.newaxis] * axises
 
@@ -104,7 +99,6 @@ class BasicInverseKinematics:
                 # zero length bones produces a meaningless rotation
                 jdirs_positive = (jsums > 1e-4)
                 ddirs_positive = (dsums > 1e-4)
-                assert (jdirs_positive[0] == jdirs_positive).all() and (jdirs_positive[0] == ddirs_positive).all()
                 dirs_positive = jdirs_positive[0]
 
                 rotations = Quaternions.from_angle_axis(angles, axises)
