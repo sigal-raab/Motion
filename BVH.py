@@ -72,7 +72,7 @@ def load(filename, start=None, end=None, order=None, world=True):
         if "HIERARCHY" in line: continue
         if "MOTION" in line: continue
 
-        rmatch = re.match(r"ROOT (\w+)", line)
+        rmatch = re.match(r"\s*ROOT\s+(\S+)", line)
         if rmatch:
             names.append(rmatch.group(1))
             offsets    = np.append(offsets,    np.array([[0,0,0]]),   axis=0)
@@ -120,7 +120,7 @@ def load(filename, start=None, end=None, order=None, world=True):
                 order = print_order[::-1] # in a bvh file, first rotation axis is printed last
             continue
 
-        jmatch = re.match("\s*JOINT\s+(\w+)", line)
+        jmatch = re.match("\s*JOINT\s+(\S+)", line) #  match <white-spaces>Joint<white-spaces><non-white-spaces>, .e.g: Joint mixamorig:LeftArm
         if jmatch:
             names.append(jmatch.group(1))
             offsets    = np.append(offsets,    np.array([[0,0,0]]),   axis=0)

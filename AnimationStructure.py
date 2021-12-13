@@ -448,4 +448,23 @@ def incidence(parents):
         inc[i,e[1]] = -1
     
     return inc.T
+
+def get_sorted_order_internal(sorted_order, parent_out_idx, parent_in_idx, children):
+    out_idx = parent_out_idx  # return same index in case there are no children
+    for child in children[parent_in_idx]:
+        out_idx = out_idx + 1
+        sorted_order[out_idx] = child
+        sorted_order, out_idx = get_sorted_order_internal(sorted_order, out_idx, child, children)
+    return sorted_order, out_idx
+
+
+def get_sorted_order(parents):
+    children = children_list(parents)
+    sorted_order = np.zeros(parents.shape, dtype=np.int)
+    root_idx = np.where(parents == -1)[0][0]
+    sorted_order[0] = root_idx
+
+    sorted_order, _ = get_sorted_order_internal(sorted_order, 0, root_idx, children)
+    return sorted_order
+
     

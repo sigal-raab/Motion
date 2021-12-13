@@ -72,15 +72,20 @@ class BasicInverseKinematics:
                 
                 c = np.array(children[j])
                 if len(c) == 0: continue
-                
+
                 anim_transforms = Animation.transforms_global(self.animation)
                 anim_positions = anim_transforms[:,:,:3,3] # look at the translation vector inside a rotation matrix
                 anim_rotations = Quaternions.from_transforms(anim_transforms)
                 # self.animation.rotations[1,0]*(self.animation.offsets[1] + self.animation.rotations[1,1]*self.animation.offsets[2]) ==
                 #         anim_positions[1, 2]
 
-                jdirs = anim_positions[:,c] - anim_positions[:,np.newaxis,j]
-                ddirs = self.positions[:,c] - self.positions[:,np.newaxis,j]
+                jdirs = anim_positions[:,c] - anim_positions[:,np.newaxis,j]  #  limb vectors given by animation
+                ddirs = self.positions[:,c] - self.positions[:,np.newaxis,j]  #  limb vectors given by input positions (target)
+
+                if len(c) > 1 and (jdirs==0).all() and (ddirs==0).all(): # there was an expansion of high degree vertices (expand_topology())
+                    # self.animation.rotations[:, j] remains untouched
+                    continue
+
 
                 jsums = np.sqrt(np.sum(jdirs**2.0, axis=-1)) + 1e-20
                 dsums = np.sqrt(np.sum(ddirs**2.0, axis=-1)) + 1e-20
@@ -508,36 +513,37 @@ class ICP:
                 
 
 def animation_from_positions(positions, parents, offsets=None):
-    sorted_order = Animation.get_sorted_order(parents)
-    positions = positions[:, sorted_order]
 
-    # reorder parents
-    sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
-    sorted_order_inversed[-1] = -1
-    parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
+    root_idx = np.where(parents == -1)[0][0]
 
     if offsets is None:
-        orig_offsets = Animation.offsets_from_positions(positions, parents) # + np.finfo(positions.dtype).eps
+        orig_offsets = Animation.offsets_from_positions(positions, parents)
 
         # compute offsets over all joints except for root
-        root_idx = np.where(parents == -1)[0][0]
         idx_no_root = np.delete(np.arange(positions.shape[1]), root_idx)
         orig_offsets_no_root = orig_offsets[:, idx_no_root]
 
         # prevent a zero offset (can happen in first iterations of generated motion). such offset is ill posed and
-        # results in ambigious angle when computing inverse kinematics
+        # results in ambigious angles when computing inverse kinematics
         orig_offsets_no_root[orig_offsets_no_root == 0] = 1e-6 * np.random.randn()
+
+        # when synthesising motion, bone length is not always fixed among frames. We calculate mean bone length and
+        # use it for the offset
         bone_lens = np.linalg.norm(orig_offsets_no_root, axis=2)[:, :, np.newaxis]
         normed_offsets_no_root = np.divide(orig_offsets_no_root, bone_lens, out=np.zeros_like(orig_offsets_no_root), where=bone_lens!=0)
-            # normed_offsets_no_root /  np.linalg.norm(normed_offsets_no_root, axis=2)[:,:,np.newaxis] * bone_lens[np.newaxis,:,np.newaxis]
         offsets_no_root = normed_offsets_no_root[0] * bone_lens.mean(axis=0)
+
         offsets = orig_offsets[0]
         offsets[idx_no_root] = offsets_no_root
 
-    anim = Animation.animation_from_offsets(offsets, parents, positions.shape)
-    anim.positions[:,root_idx] = positions[:,0] # keep root positions. important for IK
+    anim, sorted_order, parents = Animation.animation_from_offsets(offsets, parents, positions.shape)
+    positions = positions[:, sorted_order]
+    sorted_root_idx = np.where(sorted_order == root_idx)[0][0]
+
+    anim.positions[:,sorted_root_idx] = positions[:,0] # keep root positions. important for IK
 
     # apply IK
     ik = BasicInverseKinematics(anim, positions, silent=False, iterations=1)
     ik()
-    return anim, sorted_order
+    return anim, sorted_order, parents
+

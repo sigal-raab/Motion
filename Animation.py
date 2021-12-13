@@ -77,12 +77,21 @@ class Animation:
     
     def __getitem__(self, k):
         if isinstance(k, tuple):
+
+            try:
+                # since joints are re-indexed, we need to take spacial care on parents indices
+                order_inversed = {num: i for i, num in enumerate(k[1])}
+                order_inversed[-1] = -1
+                reindexed_parents = np.array([order_inversed[self.parents[i]] for i in k[1]])
+            except:
+                reindexed_parents = self.parents
+
             return Animation(
                 self.rotations[k],
                 self.positions[k],
                 self.orients[k[1:]],
                 self.offsets[k[1:]],
-                self.parents[k[1:]]) 
+                reindexed_parents)
         else:
             return Animation(
                 self.rotations[k],
@@ -659,14 +668,23 @@ def offsets_from_positions(positions, parents):
 
 
 def animation_from_offsets(offsets, parents, shape=None):
+
+    sorted_order = AnimationStructure.get_sorted_order(parents)
+    offsets = offsets[sorted_order]
+
+    # reorder parents
+    sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
+    sorted_order_inversed[-1] = -1
+    parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
+
     if shape is None:
-        shape=(0, offsets.shape[0])
+        shape=(1, offsets.shape[0])
     orients = Quaternions.id(0)
     anim_positions = np.repeat(offsets[np.newaxis], shape[0], axis=0)
     rotations = Quaternions.id((shape[0], shape[1]))
 
     anim = Animation(rotations, anim_positions, orients, offsets, parents)
-    return anim
+    return anim, sorted_order, parents
 
 
 def animation_from_positions(positions, parents):
@@ -691,24 +709,6 @@ def animation_from_positions(positions, parents):
     anim = Animation(rotations, anim_positions, orients, offsets, parents)
     return anim, sorted_order
 
-
-def get_sorted_order_internal(sorted_order, parent_out_idx, parent_in_idx, children):
-    out_idx = parent_out_idx  # return same index in case there are no children
-    for child in children[parent_in_idx]:
-        out_idx = out_idx + 1
-        sorted_order[out_idx] = child
-        sorted_order, out_idx = get_sorted_order_internal(sorted_order, out_idx, child, children)
-    return sorted_order, out_idx
-
-
-def get_sorted_order(parents):
-    children = AnimationStructure.children_list(parents)
-    sorted_order = np.zeros(parents.shape, dtype=np.int)
-    root_idx = np.where(parents == -1)[0][0]
-    sorted_order[0] = root_idx
-
-    sorted_order, _ = get_sorted_order_internal(sorted_order, 0, root_idx, children)
-    return sorted_order
 
 """ Lengths """
 

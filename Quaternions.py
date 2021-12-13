@@ -320,7 +320,7 @@ class Quaternions:
             qs[...,0] = 1.0
             return Quaternions(qs)
         
-        if isinstance(n, int) or isinstance(n, long):
+        if isinstance(n, int) or isinstance(n, np.intc) or isinstance(n, np.int_): # 'long' is not supported on python3. np.intc is equivalent to int, np.int_ is equivalent to long
             qs = np.zeros((n,4))
             qs[:,0] = 1.0
             return Quaternions(qs)
