@@ -459,6 +459,7 @@ def get_sorted_order_internal(sorted_order, parent_out_idx, parent_in_idx, child
 
 
 def get_sorted_order(parents):
+    parents = np.array(parents)  # if type(parents)==list, make it an np.array. if it's already an np.array, this line does not change it.
     children = children_list(parents)
     sorted_order = np.zeros(parents.shape, dtype=np.int)
     root_idx = np.where(parents == -1)[0][0]

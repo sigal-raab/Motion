@@ -80,10 +80,14 @@ class Animation:
 
             try:
                 # since joints are re-indexed, we need to take spacial care on parents indices
+                reind = reindex(self.parents, k[1])
+
                 order_inversed = {num: i for i, num in enumerate(k[1])}
                 order_inversed[-1] = -1
                 reindexed_parents = np.array([order_inversed[self.parents[i]] for i in k[1]])
-            except:
+                if not  all(reind==reindexed_parents):  # todo: delete prev 3 lines
+                    print('ABORT ABORT ABORT')
+            except: # we will reach the 'except' if k[1] is Nones, i.e., if the sub-selection is over frames rather then over joints
                 reindexed_parents = self.parents
 
             return Animation(
@@ -673,9 +677,12 @@ def animation_from_offsets(offsets, parents, shape=None):
     offsets = offsets[sorted_order]
 
     # reorder parents
+    p = reindex(parents, sorted_order)
+
     sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
     sorted_order_inversed[-1] = -1
     parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
+    assert all(p==parents) # todo: delete prev 3 lines if assert works well
 
     if shape is None:
         shape=(1, offsets.shape[0])
@@ -738,6 +745,11 @@ def skin(anim, rest, weights, mesh, maxjoints=4):
     verts = (verts[:,:,:,:3] / verts[:,:,:,3:4])[:,:,:,:,0]
 
     return np.sum(weightvls[np.newaxis,:,:,np.newaxis] * verts, axis=2)
-    
 
+def reindex(orig_idx, sub_idx):
+    # key: new index, value: old index
+    order_inversed = {num: i for i, num in enumerate(sub_idx)}
+    order_inversed[-1] = -1
+    new_idx = np.array([order_inversed[orig_idx[i]] for i in sub_idx])
+    return new_idx
 
