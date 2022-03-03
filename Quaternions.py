@@ -211,7 +211,7 @@ class Quaternions:
         return self
     
     def interpolate(self, ws):
-        return Quaternions.exp(np.average(abs(self).log, axis=0, weights=ws))
+        return Quaternions.exp(np.average(abs(self).log(), axis=0, weights=ws)[np.newaxis])
     
     def euler(self, order='xyz'):
         
@@ -336,7 +336,7 @@ class Quaternions:
     @classmethod
     def exp(cls, ws):
     
-        ts = np.sum(ws**2.0, axis=-1)**0.5
+        ts = np.sum(ws**2.0, axis=-1)**0.5 # compute the norm for each entry. equivalent to np.linalg.norm(ws, axis=-1)
         ts[ts == 0] = 0.001
         ls = np.sin(ts) / ts
         

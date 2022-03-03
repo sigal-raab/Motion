@@ -267,7 +267,7 @@ def test_anim_from_pose():
 
 def test_Quat():
     from Quaternions import Quaternions
-    order = 'yzx'
+    order = 'xyz'
     for t in np.arange(100):
 
         # degrees_from = np.random.random(3)*360-180 # sample degrees in [-180,180]
@@ -301,15 +301,16 @@ def test_Quat():
         assert np.isclose(q_from.qs[0,0], r.as_quat()[-1])
         assert np.allclose(q_from.qs[0,1:], r.as_quat()[:3])
         assert np.allclose(degrees2_to, degrees_to_scipy)
+        print(degrees_from)
     pass
 
 
 if __name__ == '__main__':
-    # test_Quat()
+    test_Quat()
     # IK_test_minimal()
     # IK_test_consistency_scipy()
     # IK_test_consistency_Quaternions()
-    IK_test_consistency() # clean
+    # IK_test_consistency() # clean
     # test_anim_from_pose()
     # pose_2d = np.array([[473.68356, 444.9424],
     #                       [500.9961, 448.02988],
