@@ -175,7 +175,7 @@ def load(filename, start=None, end=None, order=None, world=True):
                 rotations[fi, non_end_site_joints ] = data_block[3: ].reshape(N,3)
             elif channels == 6:
                 data_block = data_block.reshape(N,6)
-                positions[fi,:] = data_block[:,0:3]
+                positions[fi,non_end_site_joints] = data_block[:,0:3]
                 rotations[fi,non_end_site_joints] = data_block[:,3:6]
             elif channels == 9:
                 assert False, 'need to change code to handle end_site_joints'
