@@ -1,10 +1,15 @@
 import numpy as np
 import scipy.linalg as linalg
 
-import Animation
-import AnimationStructure
+try:
+    from . import Animation
+    from . import AnimationStructure
+    from .Quaternions import Quaternions
+except:
+    import Animation
+    import AnimationStructure
+    from Quaternions import Quaternions
 
-from Quaternions import Quaternions
 
 class BasicInverseKinematics:
     """

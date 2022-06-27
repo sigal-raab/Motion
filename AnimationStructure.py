@@ -1,6 +1,9 @@
 import numpy as np
-import scipy.sparse as sparse
-import Animation
+
+try:
+    from . import Animation
+except:
+    import Animation
 
 
 """ Maya Functions """

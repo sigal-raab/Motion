@@ -1,9 +1,14 @@
 import re
 import numpy as np
 
-from Animation import Animation
-import AnimationStructure
-from Quaternions import Quaternions
+try:
+    from .Animation import Animation
+    from . import AnimationStructure
+    from .Quaternions import Quaternions
+except:
+    from Animation import Animation
+    import AnimationStructure
+    from Quaternions import Quaternions
 
 channelmap = {
     'Xrotation' : 'x',
