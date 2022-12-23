@@ -463,7 +463,7 @@ def transforms_global(anim):
 
     This relies on joint ordering
     being incremental. That means a joint
-    J1 must not be a ancestor of J0 if
+    J1 must not be an ancestor of J0 if
     J0 appears before J1 in the joint
     ordering.
 
@@ -726,29 +726,6 @@ def animation_from_offsets(offsets, parents, shape=None):
 
     anim = Animation(rotations, anim_positions, orients, offsets, parents)
     return anim, sorted_order, parents
-
-
-def animation_from_positions(positions, parents):
-    '''
-    This method should not be used. It converts a sequence of motions to an animation where rotations are zero
-    and positions are as in the input. Some reasons not to use it:
-    1. the rotated direction of the parent pose is not towards the joint
-    2. There is no way to change an end site pose (as far as I [SR] know)
-    '''
-    sorted_order = get_sorted_order(parents)
-    positions = positions[:, sorted_order]
-    # reorder parents
-    sorted_order_inversed = {num: i for i, num in enumerate(sorted_order)}
-    sorted_order_inversed[-1] = -1
-    parents = np.array([sorted_order_inversed[parents[i]] for i in sorted_order])
-
-    offsets = offsets_from_positions(positions[0], parents)
-    orients = Quaternions.id(0)
-    anim_positions = offsets_from_positions(positions, parents)
-    rotations = Quaternions.id(positions.shape[:2])
-
-    anim = Animation(rotations, anim_positions, orients, offsets, parents)
-    return anim, sorted_order
 
 
 """ Lengths """

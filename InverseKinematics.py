@@ -519,6 +519,8 @@ class ICP:
 
 def animation_from_positions(positions, parents, offsets=None):
 
+    if not isinstance(parents, np.ndarray) and isinstance(parents, list):
+        parents = np.array(parents)
     root_idx = np.where(parents == -1)[0][0]
 
     if offsets is None:

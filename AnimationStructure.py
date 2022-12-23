@@ -471,4 +471,27 @@ def get_sorted_order(parents):
     sorted_order, _ = get_sorted_order_internal(sorted_order, 0, root_idx, children)
     return sorted_order
 
+
+def expand_kinematic_chain(children, chain_prefix):
+    youngest_children = children[chain_prefix[-1]]
+    if len(youngest_children) == 0:
+        kinematic_chain = [chain_prefix]
+    else:
+        kinematic_chain = []
+        for child in youngest_children:
+            child_chains = expand_kinematic_chain(children, chain_prefix + [child])
+            kinematic_chain.extend(child_chains)
+
+    return kinematic_chain
+
+
+def get_kinematic_chain(parents):
+    parents = np.array(parents)  # if type(parents)==list, make it an np.array. if it's already an np.array, this line does not change it.
+    children = children_list(parents)
+    root_idx = np.where(parents == -1)[0][0]
+
+    # DFS
+    kinematic_chain = expand_kinematic_chain(children, [root_idx])
+
+    return kinematic_chain
     
