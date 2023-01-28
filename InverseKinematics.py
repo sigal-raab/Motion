@@ -551,6 +551,6 @@ def animation_from_positions(positions, parents, offsets=None):
 
     # apply IK
     ik = BasicInverseKinematics(anim, positions, silent=False, iterations=1)
-    ik()
-    return anim, sorted_order, parents
+    new_anim = ik()
+    return new_anim, sorted_order, parents
 

@@ -117,7 +117,7 @@ class Quaternions:
         
         raise TypeError('Cannot multiply/add Quaternions with type %s' % str(type(other)))
         
-    def __div__(self, other):
+    def __truediv__(self, other):  # for python 2, use __div__ or a forward directive
         """
         When a Quaternion type is supplied, division is defined
         as multiplication by the inverse of that Quaternion.
@@ -172,7 +172,9 @@ class Quaternions:
         return Quaternions(self.qs.repeat(n, **kwargs))
     
     def normalized(self):
-        return Quaternions(self.qs / self.lengths[...,np.newaxis])
+        lengths =  self.lengths[...,np.newaxis]
+        lengths[lengths==0] = 1  # protect from deviding by zero
+        return Quaternions(self.qs / lengths)
     
     def log(self):
         norm = abs(self.normalized())
