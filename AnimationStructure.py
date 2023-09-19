@@ -465,7 +465,7 @@ def get_sorted_order(parents):
     """ sorted order is a dfs order of the skeleton. REQUIRED for bvh creation. """
     parents = np.array(parents)  # if type(parents)==list, make it an np.array. if it's already an np.array, this line does not change it.
     children = children_list(parents)
-    sorted_order = np.zeros(parents.shape, dtype=np.int)
+    sorted_order = np.zeros(parents.shape, dtype=int)
     root_idx = np.where(parents == -1)[0][0]
     sorted_order[0] = root_idx
 
