@@ -6,8 +6,8 @@ try:
     from . import AnimationStructure
     from .Quaternions import Quaternions
 except:
-    import Animation
-    import AnimationStructure
+    from motion import Animation
+    from motion import AnimationStructure
     from Quaternions import Quaternions
 
 
